@@ -1,19 +1,19 @@
 {
   "specs": [
     {
-      "title": "Spec-Up Example",
-      "spec_directory": "./single-file-test",
+      "title": "did:webplus Specification",
+      "spec_directory": "./",
       "output_path": "./",
       "logo": "logo.svg",
       "logo_link": "https://github.com/decentralized-identity/spec-up",
       "source": {
         "host": "github",
-        "account": "decentralized-identity",
-        "repo": "spec-up"
+        "account": "learningproof",
+        "repo": "did-webplus-spec"
       },
       "external_specs": [
         {
-          "PE": "https://identity.foundation/presentation-exchange"
+          "DID": "https://www.w3.org/TR/did-core/"
         }
       ],
       "assets": [
@@ -31,23 +31,6 @@
         }
       ],
       "katex": true
-    },
-    {
-      "title": "Spec-Up Multi-File Example",
-      "spec_directory": "./multi-file-test",
-      "markdown_paths": [
-        "header.md",
-        "abstract.md",
-        "getting-started.md",
-        "features.md"
-      ],
-      "logo": "../logo.svg",
-      "logo_link": "https://github.com/decentralized-identity/spec-up",
-      "source": {
-        "host": "github",
-        "account": "decentralized-identity",
-        "repo": "spec-up"
-      }
     }
   ]
 }
