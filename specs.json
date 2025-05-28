@@ -1,0 +1,36 @@
+{
+  "specs": [
+    {
+      "title": "did:webplus Specification",
+      "spec_directory": "./",
+      "output_path": "./",
+      "logo": "logo.svg",
+      "logo_link": "https://github.com/learningproof/did-webplus-spec",
+      "source": {
+        "host": "github",
+        "account": "learningproof",
+        "repo": "did-webplus-spec"
+      },
+      "external_specs": [
+        {
+          "DID": "https://www.w3.org/TR/did-core/"
+        }
+      ],
+      "assets": [
+        {
+          "path": "/custom-assets/custom.css"
+        },
+        {
+          "path": "/custom-assets/custom-head.js",
+          "inject": "head"
+        },
+        {
+          "path": "/custom-assets/custom-body.js",
+          "inject": "body",
+          "module": true
+        }
+      ],
+      "katex": true
+    }
+  ]
+}
