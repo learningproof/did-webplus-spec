@@ -27,7 +27,7 @@ Participate:
 * Verifiable history for each DID
   * self-contained JWT-based cryptography library for generating and verifying these chains of DID documents
   * precise, reliable, and scalable historical resolution for audit-trail use-cases, whether over the web to the hosting server or from trusted caches
-* Various additional levels of verifiability beyond did:web's guarantees, which can be achived via multiple different architecture (trusted resolver, witness network, etc)
+* Various additional levels of verifiability beyond did:web's guarantees, which can be achieved via multiple different architecture (trusted resolver, witness network, etc)
 * Cost-efficient, scalable "VDR Server" (multi-user, backwards-compatible `did:web` server)
   * Reference implementation available in Rust
 * Full backwards-compatibility and fallback to `did:web` functionality (simply replace `webplus` with `web`!)
@@ -65,7 +65,7 @@ A Verifying Party will use a [[ref: DID Resolver]] to resolve the DID. They may 
 
 ### DID Scheme
 
-The scheme is `webplus`; note that ANY valid `did:webplus` URL (without query parameters or matrix parameters) is a valid `did:web` URL, which can be resolved as such simply by removing the `plus`.
+The scheme is `webplus`; note that ANY valid `did:webplus` URL (without query parameters or matrix parameters) is a valid `did:web` URL, which can be resolved as such by simply removing the `plus`.
 
 ### Method-Specific Identifiers
 
@@ -94,6 +94,8 @@ did:webplus:localhost%3A3000:EjXivDidxAi2kETdFw1o36-jZUkYkxg0ayMhSBjODAgQ -> htt
 did:webplus:localhost%3A3000:path-component:EjXivDidxAi2kETdFw1o36-jZUkYkxg0ayMhSBjODAgQ -> http://localhost:3000/path-component/EjXivDidxAi2kETdFw1o36-jZUkYkxg0ayMhSBjODAgQ/did.json
 ```
 
+Note that `/.well-known/` URLs are not used, as the self-hash of the initial DID document is used as the DID string.
+
 ##### TODO - partial version-specific paths possible?
 
 can you request
@@ -116,30 +118,138 @@ or ONLY
 
 #### TODO - Query Parameters
 
-??? not sure how this works with static servers like gitpages, unless you optionally make dynamic servers translate `version=` or `versionId=` into the above?
+??? not sure how this works with static servers like gitpages, unless you optionally make [tiny] dynamic servers translate `version=` or `versionId=` into the above?
 
 ### DID Fragments
+
+DID fragments are only used to refer to specific keys, defined in the `verificationMethods` array where each key contains a full DID+fragment as its `id`, and with purposes mapped to arrays of 0 or more keys by relative fragments.
+
+Resolvers MUST dereference specific verificationMethod objects by absolute references (i.e. DID+key fragment).
+They MUST also dereference purpose fragments (i.e. DID+`#authentication`) to the keys they map to.
+
+### DID Document Core Properties
+
+The following are core properties in any `did:webplus`; additional properties MAY be added, but no interoperability is guaranteed, and the following property names MUST be reserved.
+
+-   `id`: MUST be a valid `did:webplus` DID with no query parameters or fragment.
+-   `selfHash`: MUST be a valid self-hash in the [KERI hash encoding](#self-hash-encoding). See [self-hashing appendix](#self-hash-algorithm) for specifics on the self-hash generation and verification process.
+-   `selfSignature`: MUST be a valid self-signature in the [KERI signature encoding](TODO-link-me-to-appropriate-section).  See [self-signing](#self-signing) for specific relationships between `selfSignature`, `selfSignatureVerifier`, and root and/or previous DID documents.
+-   `selfSignatureVerifier`: MUST be a valid public key in the [KERI verifier encoding](TODO-link-me-to-appropriate-section).
+-   `prevDIDDocumentSelfHash`: MUST be `null` or a valid self-hash in the [KERI hash encoding](TODO-link-me-to-appropriate-section).
+-   `validFrom`: MUST be a valid [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339) timestamp.
+-   `versionId`: MUST be an unsigned integer.
+-   `verificationMethod`: MUST be an array of [verification methods](TODO-link-me-to-appropriate-section), each of whose key id (the fragment identifying the specific key) MUST be equal to the KERI-encoding of the key.  This achieves two things:
+    -   It allows for the key to have a canonical key id.
+    -   It allows for the public key to be read out of a DID resource URI so that use of the public key can be done in parallel with the DID resolution process.  The DID resolution process MUST also be performed in order to establish that the identified key is indeed allowed for the relevant key purpose (authentication, assertionMethod, etc).
+-   Fields for [Verification Relationships](https://www.w3.org/TR/did-1.1/#verification-relationships)
+    -   [`authentication`](https://www.w3.org/TR/did-1.1/#authentication)
+    -   [`assertionMethod`](https://www.w3.org/TR/did-1.1/#assertion)
+    -   [`keyAgreement`](https://www.w3.org/TR/did-1.1/#key-agreement)
+    -   [`capabilityInvocation`](https://www.w3.org/TR/did-1.1/#capability-invocation)
+    -   [`capabilityDelegation`](https://www.w3.org/TR/did-1.1/#capability-delegation)
+
+NOTE: The use of KERI-encoded data (e.g. public keys, hashes, signatures) is likely to be changed in the future to use multiformat-based encoding, as it is more standardized, supports more hash/key/signature types, and is more broadly supported.
+
+There are additional constraints that depend on if a DID document is a root DID document or a non-root DID document.
 
 ### DID Operations
 
 #### Create
 
-#### Read
+The first DID document in the microledger, called the root DID document, contains a self-hash which forms part of the DID itself. This binds the DID to the content of its root DID document, and prevents alterations to the root DID document.
+
+Generating a root DID document requires the following steps:
+
+1. The root DID document MUST have its `versionId` field set to 0.
+1. The root DID document's `prevDIDDocumentSelfHash` field MUST be omitted to indicate that there is no previous DID document.
+1. The root DID document's `selfSignatureVerifier` field must correspond to one of the public keys listed in the `capabilityInvocation` field of the root DID document itself. This field defines which keys are authorized to update this DID's DID document; in the case of the root DID document, it establishes an initial self-consistency for that authority (see last step).
+1. All other mandatory fields MUST be set (see [core properties](#did-document-core-properties) ).
+1. Self-hash the document (see [Self-hash Algorithm](#self-hash-algorithm) below) and self-sign the document (see [Self-sign Algorithm](#self-sign-algorithm below)).
+1. POST signed DID document to hosting server, which after verifying hosts it at the appropriate unauthenticated URL (see [DID path to URL mapping section](#did-path-to-url-mapping)).
+
+#### Resolution
+
+1. Convert complete DID URL to URL to request (see [DID path to URL mapping section](#did-path-to-url-mapping)).
+1. GET did document (no authentication needed)
+
+Specific versions of the DID document are addressable by `versionId` or `selfHash` query parameters:
+-   To resolve the DID document with `selfHash` value `EgqvDOcj4HItWDVij-yHj0GtBPnEofatHT2xuoVD7tMY`, the URL is `https://example.com/EjXivDidxAi2kETdFw1o36-jZUkYkxg0ayMhSBjODAgQ/did/selfHash/EgqvDOcj4HItWDVij-yHj0GtBPnEofatHT2xuoVD7tMY.json`
+-   To resolve the DID document with `versionId` value `1`, the URL is `https://example.com/EjXivDidxAi2kETdFw1o36-jZUkYkxg0ayMhSBjODAgQ/did/versionId/1.json`
 
 ##### Levels of Verification and Supplemental Trust
 
+//todo
+
 #### Update
+
+A DID controller can update a DID by forming an updated DID document with appropriate relationships to the previous DID document and appropriate public keys, [self-signing](#self-signing) and [self-hashing](#self-hashed-data) the DID document, and then `HTTP PUT`-ing the DID document to the resolution URL for the DID.
+
+Upon receipt of a valid and appropriate-signed DID document, the controller of the current DID document MUST host an identical copy of the new DID document at both the primary versionHash path AND the alternate versionId path (see [resolution](#resolution) above).
+It must also overwrite the current `did:web` fallback DID document with the new DID document to successfully resolve the corresponding `did:web` document post-update.
 
 #### Deactivate
 
+//Todo - didn't see any reference in the original spec
+
 ### DID Authorization
 
-At minimum, each DID document contains at least one public key at inception, and updates to it can be authorized only by the matching private key.
+At minimum, each DID document contains at least one public key at inception, and updates to it can be authorized only by a signature verifying against a key in that authorization key set.
 Additional controllers (in the form of additional public keys) can be added at inception or by any valid update; see the update section above.
+
+//TODO - Can an update reducing that number to 0 be accepted? If so, what conditions must be met for it to be accepted, i.e., must the same update change "type" to "Tombstone", etc? (silly example but worth planning carefully)? Make sure this section matches the Deactivate section above
 
 ### Example 
 
+### Self-Hash Algorithm
 
+In `did:webplus`, hashes are represented as ASCII strings as in [KERI](https://github.com/decentralized-identity/keri/blob/master/kids/kid0001.md#derivation-codes), where the first character gives the hash function and the remainder of the string is the base64url-encoding of the hash value.  In particular, the Blake3 hash function is represented using the character `E`, and the 256-bit hash value is represented as a 43-digit base64url-encoded string.  For example:
+
+    EjXivDidxAi2kETdFw1o36-jZUkYkxg0ayMhSBjODAgQ
+
+The placeholder value for the Blake3 hash function is
+
+    EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+
+noting that 43 `A` characters is the base64url-encoding of 256 bits of 0.
+
+//TODO is the above up to date? if so, as concisely as possible replace it with an accurate overview of how to format/express the hash and an example of a zero-ed-out value.
+
+Abstractly, the process is:
+
+```mermaid
+graph TD
+    S[Source Data] -->|Set Self-Hash Slots to Placeholder Value| P
+    S --> O
+    P[Data With Placeholders] -->|Canonicalize| C
+    C[Canonicalized Data With Placeholders] -->|Compute Hash Conventionally| H
+    H[Hash of: Canonicalized Data With Placeholders] --> O
+    O{Set All Self-Hash Slots to Computed Hash} --> F
+    F[Self-Hashed Data]
+```
+
+##### Self-Hashed Data Verification
+
+Abstractly, the process is:
+
+```mermaid
+graph TD
+    S[Unverified Self-Hashed Data] -->|Set Self-Hash Slots to Placeholder Value| P
+    S --> O
+    P[Data With Placeholders] -->|Canonicalize| C
+    C[Canonicalized Data With Placeholders] -->|Compute Hash Conventionally| H
+    H[Hash of: Canonicalized Data With Placeholders] --> O
+    O{Are All Self-Hash Slots Equal to Computed Hash?}
+    O -->|Yes| Success[Verification Succeeded]
+    O -->|No| Failure[Verification Failed]
+```
+
+#### Self-Hash Encoding
+
+//TODO: summarize KERI and/or multibase encoding in 3 sentences max and add normref below
+
+### Self-Sign Algorithm
+
+//TODO: above, it still says "See [self-signing](#self-signing) for specific relationships between `selfSignature`, `selfSignatureVerifier`, and root and/or previous DID documents."
 
 ## Appendices
 
