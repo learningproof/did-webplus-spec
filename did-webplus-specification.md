@@ -24,7 +24,7 @@ It is assumed that the reader is familiar with the concepts in the [DID spec](ht
 Rust implementation, licensed under the [MIT License](LICENSE) by LedgerDomain:
 -   [`did:webplus` Verifiable Data Registry (VDR) service (reference implementation)](did-webplus/vdr/README.md)
 -   [`did:webplus` Verifiable Data Gateway (VDG) service (reference implementation)](did-webplus/vdg/README.md)
--   [`did-webplus` CLI tool (reference implementation for DID controller and verifying party operations)](did-webplus/cli/README.md)
+-   [`did-webplus` CLI tool (reference implementation for DID Controller, DID Resolver, and Verifying Party operations)](did-webplus/cli/README.md)
 
 More information, as well as all source code, is available at <https://github.com/LedgerDomain/did-webplus>.
 
@@ -793,7 +793,7 @@ Recall that a DID is an identifier that, through the DID resolution process, can
 
 The indirection of using a DID instead of the public keys directly is that it makes key rotation possible without breaking existing verification relationships (e.g. credentials issued by or to a DID).  
 
-Besides the DID itself, the primary piece of data is the DID document.  A DID document is a JSON object that contains the public keys of the DID controller (and can potentially include other things).  The content of the DID document can be changed over time, and a central feature of `did:webplus` is that the entire, versioned history of DID documents is available and can be cryptographically verified.
+Besides the DID itself, the primary piece of data is the DID document.  A DID document is a JSON object that contains the public keys of the DID controller (and can potentially include other things).  The current DID document can be updated over time, and a central feature of `did:webplus` is that the entire, versioned history of DID documents is available and can be cryptographically verified.
 
 ### DID Microledger
 
@@ -1061,7 +1061,7 @@ A crucial feature of `did:webplus` is that each DID document in a DID's entire h
 
 A cryptographic hash function computes a fixed-size "digest" of its input data that can be used as a powerful mechanism for distinguishing differing data.  The hash value of a piece of data is often used as a means for "content integrity protection" -- if even one bit of the input data is altered, the hash value will be different, and thus alterations in the input data are readily detectable.
 
-Conventional content integrity protection operates by reporting the hash of a specific piece data in a side-channel, and then verifying that the computed hash of the data matches the reported hash value.  If these values don't match, then the data has been altered.  If these values match then practically speaking the data has [almost certainly not been altered](https://en.wikipedia.org/wiki/Collision_resistance).  In the case of a hash value mismatch, the alteration could have legitimate origins (a file was corrupted due to system fault), or could have malicious origins (an attacker trying to infiltrate data into a target system).
+Conventional content integrity protection operates by reporting the hash of a specific piece data in a side-channel, and then verifying that the computed hash of the data matches the reported hash value.  If these values don't match, then the data has been altered.  If these values match then practically speaking the data [has almost certainly not been altered](https://en.wikipedia.org/wiki/Collision_resistance).  In the case of a hash value mismatch, the alteration could have legitimate origins (a file was corrupted due to system fault), or could have malicious origins (an attacker trying to infiltrate data into a target system).
 
 ```mermaid
 graph TD

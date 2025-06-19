@@ -1,3 +1,4 @@
+# did-webplus-spec
 
 This repository contains the raw specification for the `did:webplus` DID method, formatted using the [spec-up tool](https://github.com/decentralized-identity/spec-up).
 For minor edits, simply update the markdown files and open a PR.
